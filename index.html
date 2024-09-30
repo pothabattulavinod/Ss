@@ -62,26 +62,18 @@
                 { file: "https://file-streamx-697cdb6409cc.herokuapp.com/178255?hash=AgADTg&m=1?hash=undefined?&.MP4", label: "URL 9" }
             ];
 
-            var currentUrlIndex = 0;
-
-            // Function to switch to the next URL if the current one fails
-            function switchToNextUrl() {
-                currentUrlIndex++;
-                if (currentUrlIndex < videoUrls.length) {
-                    console.log("Switching to: " + videoUrls[currentUrlIndex].label);
-                    playerInstance.load([{ file: videoUrls[currentUrlIndex].file }]);
-                    playerInstance.play();
-                } else {
-                    console.log("All URLs have failed.");
-                }
+            // Function to get a random URL from the list
+            function getRandomUrl() {
+                const randomIndex = Math.floor(Math.random() * videoUrls.length);
+                return videoUrls[randomIndex].file;
             }
 
-            // Set up JW Player with the first URL
+            // Set up JW Player with a random URL
             playerInstance.setup({
                 aspectratio: "16:9",
                 preload: 'auto',
                 primary: 'html5',
-                sources: [videoUrls[0]],
+                sources: [{ file: getRandomUrl() }],
                 tracks: [
                     {
                         file: "https://raw.githubusercontent.com/pothabattulavinod/Ss/refs/heads/main/Saripodhaa%20Sanivaaram.vtt",
@@ -106,21 +98,14 @@
                 }
             });
 
-            // Handle player errors and switch to the next available URL
+            // Handle player errors and try to load another random URL
             playerInstance.on('error', function () {
-                console.log("Error occurred, switching to the next available URL.");
-                switchToNextUrl();
+                console.log("Error occurred, trying a different random URL.");
+                playerInstance.load([{ file: getRandomUrl() }]);
+                playerInstance.play();
             });
 
-            // Save the last playback position when buffering is detected
-            playerInstance.on('buffer', function () {
-                console.log("Buffering detected...");
-                var lastTimeKey = 'jwplayer-last-time';
-                localStorage.setItem(lastTimeKey, playerInstance.getPosition());
-                switchToNextUrl();  // Switch to the next URL if buffering persists
-            });
-
-            // Save and restore playback time
+            // Save and restore playback time on ready
             playerInstance.on('ready', function () {
                 var lastTimeKey = 'jwplayer-last-time';
                 var lastTime = localStorage.getItem(lastTimeKey);
@@ -138,18 +123,18 @@
                 );
             });
 
+            // Save the current playback position when the video is paused
             playerInstance.on('pause', function () {
                 var lastTimeKey = 'jwplayer-last-time';
                 localStorage.setItem(lastTimeKey, playerInstance.getPosition());
             });
 
+            // Reset the last playback position when the video is complete
             playerInstance.on('complete', function () {
-                var lastTimeKey = 'jwplayer-last-time';
-                localStorage.setItem(lastTimeKey, 0);
+                localStorage.setItem('jwplayer-last-time', 0);
             });
         });
     </script>
 </body>
 
 </html>
-

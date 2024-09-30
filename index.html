@@ -48,6 +48,11 @@
     <script type="text/javascript">
         document.addEventListener("DOMContentLoaded", function () {
             var playerInstance = jwplayer("player");
+            var bufferingTimeout = null;  // To track buffering
+            var bufferThreshold = 10000;  // 10 seconds threshold for buffering
+            var lastTimeKey = 'jwplayer-last-time';  // Key to store the last played time
+            var lastTime = parseFloat(localStorage.getItem(lastTimeKey)) || 0;  // Retrieve last time
+            var currentUrlIndex = 0;
 
             // Define multiple URLs for the same video
             var videoUrls = [
@@ -62,15 +67,14 @@
                 { file: "https://file-streamx-697cdb6409cc.herokuapp.com/178255?hash=AgADTg&m=1?hash=undefined?&.MP4", label: "URL 9" }
             ];
 
-            var currentUrlIndex = 0;
-
-            // Function to switch to the next URL if the current one fails
+            // Function to switch to the next URL if buffering persists
             function switchToNextUrl() {
                 currentUrlIndex++;
                 if (currentUrlIndex < videoUrls.length) {
                     console.log("Switching to: " + videoUrls[currentUrlIndex].label);
                     playerInstance.load([{ file: videoUrls[currentUrlIndex].file }]);
                     playerInstance.play();
+                    playerInstance.seek(lastTime);  // Seek to the last played time
                 } else {
                     console.log("All URLs have failed.");
                 }
@@ -112,19 +116,37 @@
                 switchToNextUrl();
             });
 
-            // Optional: Handle buffering issues (switch URLs if persistent buffering is detected)
+            // Buffering event: Start monitoring buffering
             playerInstance.on('buffer', function () {
                 console.log("Buffering detected...");
-                // Uncomment the line below if you want to switch URLs on buffering.
-                // switchToNextUrl();
+                // Save the current playback position during buffering
+                lastTime = playerInstance.getPosition();
+                localStorage.setItem(lastTimeKey, lastTime);
+
+                // Clear any previous buffering timeout
+                if (bufferingTimeout) {
+                    clearTimeout(bufferingTimeout);
+                }
+
+                // Start a new timer to switch the URL if buffering persists for more than the threshold
+                bufferingTimeout = setTimeout(function () {
+                    console.log("Buffering for too long, switching to the next URL.");
+                    switchToNextUrl();
+                }, bufferThreshold);
+            });
+
+            // When the buffering stops (player is ready to play), clear the timeout
+            playerInstance.on('play', function () {
+                if (bufferingTimeout) {
+                    clearTimeout(bufferingTimeout);
+                    bufferingTimeout = null;
+                }
             });
 
             // Add custom forward button (optional)
             playerInstance.on('ready', function () {
-                var lastTimeKey = 'jwplayer-last-time';
-                var lastTime = localStorage.getItem(lastTimeKey);
                 if (lastTime) {
-                    playerInstance.seek(parseFloat(lastTime));
+                    playerInstance.seek(lastTime);  // Seek to the last played time on ready
                 }
 
                 playerInstance.addButton(
@@ -138,13 +160,12 @@
             });
 
             playerInstance.on('pause', function () {
-                var lastTimeKey = 'jwplayer-last-time';
-                localStorage.setItem(lastTimeKey, playerInstance.getPosition());
+                lastTime = playerInstance.getPosition();
+                localStorage.setItem(lastTimeKey, lastTime);
             });
 
             playerInstance.on('complete', function () {
-                var lastTimeKey = 'jwplayer-last-time';
-                localStorage.setItem(lastTimeKey, 0);
+                localStorage.setItem(lastTimeKey, 0);  // Reset last time when video completes
             });
         });
     </script>
